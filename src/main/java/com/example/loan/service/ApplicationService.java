@@ -9,12 +9,14 @@ import com.example.loan.exception.BaseException;
 import com.example.loan.exception.ResultType;
 import com.example.loan.repository.AcceptTermsRepository;
 import com.example.loan.repository.ApplicationRepository;
+import com.example.loan.repository.JudgementRepository;
 import com.example.loan.repository.TermsRepository;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
@@ -27,6 +29,7 @@ public class ApplicationService {
     private final ApplicationRepository applicationRepository;
     private final TermsRepository termsRepository;
     private final AcceptTermsRepository acceptTermsRepository;
+    private final JudgementRepository judgementRepository;
     private final ModelMapper modelMapper;
 
 
@@ -73,7 +76,7 @@ public class ApplicationService {
     }
 
 
-    // 약관 동의 ------------------------>
+    // 약관 동의 --------------------------------->
 
     // 회사가 게시한 약관을 고객이 모두 동의하면 레포지토리에 저장함
     public Boolean acceptTerms(Long applicationId, ApplicationDTO.AcceptTermsDTO request) {
@@ -116,6 +119,35 @@ public class ApplicationService {
 
         return true;
     }
+
+
+    // ------------------------------------------------->
+
+    // (심사 -> 금액 부여 ->) 대출 계약
+    public ApplicationDTO.Response contract(Long applicationId) {
+        // 1.신청  2.심사->금액 가져오기
+        Application application = applicationRepository.findById(applicationId).orElseThrow(() -> {
+            throw new BaseException(ResultType.SYSTEM_ERROR);
+        });
+
+        judgementRepository.findByApplicationId(applicationId).orElseThrow(() -> {
+            throw new BaseException(ResultType.SYSTEM_ERROR);
+        });
+
+        // 승인 금액 검증
+        if (application.getApprovalAmount() == null
+                || application.getApprovalAmount().compareTo(BigDecimal.ZERO) == 0) {
+            throw new BaseException(ResultType.SYSTEM_ERROR);
+        }
+
+        // 계약 체결
+        application.setContractedAt(LocalDateTime.now());
+
+        Application updated = applicationRepository.save(application);
+
+        return modelMapper.map(updated, ApplicationDTO.Response.class);
+    }
+
 
 
 }

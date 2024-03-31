@@ -115,4 +115,11 @@ public class ApplicationController extends  AbstractController {
         return ok();
     }
 
+
+    // 계약 체결
+    @PostMapping("/{applicationId}/contract")
+    public ResponseDTO<ApplicationDTO.Response> contract(@PathVariable Long applicationId) {
+        return ok(applicationService.contract(applicationId));
+    }
+
 }
